@@ -55,6 +55,30 @@ namespace ExpressiveAnnotations
             return type != null && type == typeof(string);
         }
 
+#if PORTABLE
+        public static bool IsNumeric(this Type type)
+        {
+            if (type == null)
+                throw new ArgumentNullException("type");
+
+            
+            var numericTypes = new HashSet<Type>
+            {
+                typeof(sbyte),    //sbyte
+                typeof(byte),     //byte
+                typeof(short),    //short
+                typeof(ushort),   //ushort
+                typeof(int),    //int
+                typeof(uint),   //uint
+                typeof(long),    //long
+                typeof(ulong),   //ulong
+                typeof(float),   //float
+                typeof(double),   //double
+                typeof(decimal)   //decimal
+            };
+            return numericTypes.Any(t => t.Equals(type)) || type.IsNullable() && Nullable.GetUnderlyingType(type).IsNumeric();
+        }
+#else
         public static bool IsNumeric(this Type type)
         {
             if (type == null)
@@ -76,13 +100,18 @@ namespace ExpressiveAnnotations
             };
             return numericTypes.Contains(Type.GetTypeCode(type)) || type.IsNullable() && Nullable.GetUnderlyingType(type).IsNumeric();
         }
+#endif
 
         public static bool IsNullable(this Type type)
         {
             if (type == null)
                 throw new ArgumentNullException("type");
 
+#if PORTABLE
+            return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+#else
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+#endif
         }
 
         public static Type ToNullable(this Type type)
@@ -100,7 +129,11 @@ namespace ExpressiveAnnotations
 
             try
             {
+#if PORTABLE
+                return assembly.ExportedTypes;
+#else
                 return assembly.GetTypes();
+#endif
             }
             catch (ReflectionTypeLoadException e)
             {
@@ -157,7 +190,17 @@ namespace ExpressiveAnnotations
             if (input == null)
                 throw new ArgumentNullException("input");
 
+#if PORTABLE
+            int count = 0;
+            foreach (var c in input)
+            {
+                if (c == '\n')
+                    count++;
+            }
+            return count;
+#else
             return input.Count(n => n == '\n');
+#endif
         }
 
         public static string TakeLine(this string input, int index)

@@ -38,6 +38,10 @@ namespace ExpressiveAnnotations.Analysis
         private IDictionary<string, object> Consts { get; set; }        
         private IDictionary<string, IList<LambdaExpression>> Functions { get; set; }
 
+#if PORTABLE
+        public Func<IEnumerable<Assembly>> GetAssemblies { get; set; }
+#endif
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Parser" /> class.
         /// </summary>
@@ -345,7 +349,11 @@ namespace ExpressiveAnnotations.Analysis
                             ? Expression.Add(
                                 Expression.Convert(arg1, typeof (object)),
                                 Expression.Convert(arg2, typeof (object)),
+#if PORTABLE
+                                typeof(string).GetRuntimeMethod("Concat", new[] { typeof(object), typeof(object) }))
+#else
                                 typeof (string).GetMethod("Concat", new[] {typeof (object), typeof (object)})) // convert string + string into a call to string.Concat
+#endif
                             : Expression.Add(arg1, arg2));
                 case TokenType.SUB:
                     return ParseAddExpInternal(Expression.Subtract(arg1, arg2));
@@ -512,7 +520,11 @@ namespace ExpressiveAnnotations.Analysis
 
             foreach (var part in parts)
             {
+#if PORTABLE
+                var pi = type.GetRuntimeProperty(part);
+#else
                 var pi = type.GetProperty(part);
+#endif
                 if (pi == null)
                     return null;
 
@@ -530,8 +542,16 @@ namespace ExpressiveAnnotations.Analysis
             if (parts.Count() > 1)
             {
                 var enumTypeName = string.Join(".", parts.Take(parts.Count() - 1).ToList());
-                var enumTypes = AppDomain.CurrentDomain.GetAssemblies()
+#if PORTABLE
+                var assemblies = GetAssemblies();
+#else
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+#endif
+                var enumTypes = assemblies
                     .SelectMany(a => a.GetLoadableTypes())
+#if PORTABLE
+                    .Select(t => t.GetTypeInfo())
+#endif
                     .Where(t => t.IsEnum && t.FullName.Replace("+", ".").EndsWith(enumTypeName))
                     .ToList();
 
@@ -545,7 +565,11 @@ namespace ExpressiveAnnotations.Analysis
                 var type = enumTypes.SingleOrDefault();
                 if (type != null)
                 {
+#if PORTABLE
+                    var value = Enum.Parse(type.AsType(), parts.Last());
+#else
                     var value = Enum.Parse(type, parts.Last());
+#endif
                     Consts[name] = value;
                     return Expression.Constant(value);
                 }
@@ -559,25 +583,43 @@ namespace ExpressiveAnnotations.Analysis
             if (parts.Count() > 1)
             {
                 var constTypeName = string.Join(".", parts.Take(parts.Count() - 1).ToList());
-                var constants = AppDomain.CurrentDomain.GetAssemblies()
+#if PORTABLE
+                var assemblies = GetAssemblies();
+#else
+                var assemblies = AppDomain.CurrentDomain.GetAssemblies();
+#endif
+                var constants = assemblies
                     .SelectMany(a => a.GetLoadableTypes())
                     .Where(t => t.FullName.Replace("+", ".").EndsWith(constTypeName))
+#if PORTABLE
+                    .SelectMany(t => t.GetRuntimeFields().Where(f =>
+                        (f.IsPublic || f.IsStatic) && (f.IsLiteral && !f.IsInitOnly && f.Name.Equals(parts.Last()))))
+#else
                     .SelectMany(t =>
                         t.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                             .Where(fi => fi.IsLiteral && !fi.IsInitOnly && fi.Name.Equals(parts.Last())))
+#endif
                     .ToList();
 
                 if (constants.Count() > 1)
                     throw new ParseErrorException(
                         string.Format("Constant '{0}' is ambiguous, found following:{1}{2}.",
                             name, Environment.NewLine, string.Join("," + Environment.NewLine,
-                                constants.Select(x => string.Format("'{0}.{1}'", x.ReflectedType.FullName, x.Name)))),
+#if PORTABLE
+                            constants.Select(x => string.Format("'{0}.{1}'", x.DeclaringType.FullName, x.Name)))),
+#else
+                            constants.Select(x => string.Format("'{0}.{1}'", x.ReflectedType.FullName, x.Name)))),
+#endif
                         PeekToken(1).Location);
 
                 var constant = constants.SingleOrDefault();
                 if (constant != null)
                 {
+#if PORTABLE
+                    var value = constant.GetValue(null);
+#else
                     var value = constant.GetRawConstantValue();
+#endif
                     Consts[name] = (value is string) 
                         ? ((string)value).Replace(Environment.NewLine, "\n") 
                         : value; // in our language new line is represented by \n char (consts map 
@@ -587,12 +629,20 @@ namespace ExpressiveAnnotations.Analysis
             }
             else
             {
+#if PORTABLE
+                var constant = ContextType.GetRuntimeFields().Where(f => f.IsPublic || f.IsStatic)
+                    .SingleOrDefault(fi => fi.IsLiteral && !fi.IsInitOnly && fi.Name.Equals(name));
+#else
                 var constant = ContextType.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                     .SingleOrDefault(fi => fi.IsLiteral && !fi.IsInitOnly && fi.Name.Equals(name));
-
+#endif
                 if (constant != null)
                 {
+#if PORTABLE
+                    var value = constant.GetValue(null);
+#else
                     var value = constant.GetRawConstantValue();
+#endif
                     Consts[name] = (value is string) 
                         ? ((string)value).Replace(Environment.NewLine, "\n") 
                         : value;
@@ -616,7 +666,11 @@ namespace ExpressiveAnnotations.Analysis
 
         private Expression FetchModelMethod(string name, IList<Tuple<Expression, Location>> args, Location funcPos)
         {
+#if PORTABLE
+            var signatures = ContextType.GetRuntimeMethods()
+#else
             var signatures = ContextType.GetMethods()
+#endif
                 .Where(mi => name.Equals(mi.Name) && mi.GetParameters().Length == args.Count)
                 .ToList();
             if (signatures.Count == 0)
@@ -675,7 +729,11 @@ namespace ExpressiveAnnotations.Analysis
 
         private void AssertMethodNameExistence(string name, Location funcPos)
         {
+#if PORTABLE
+            if (!Functions.ContainsKey(name) && !ContextType.GetRuntimeMethods().Any(mi => name.Equals(mi.Name)))
+#else
             if (!Functions.ContainsKey(name) && !ContextType.GetMethods().Any(mi => name.Equals(mi.Name)))
+#endif
                 throw new ParseErrorException(
                     string.Format("Function '{0}' not known.", name),
                     funcPos);

@@ -55,7 +55,11 @@ namespace ExpressiveAnnotations.Analysis
 
             RegexMap = patterns.ToDictionary(
                 kvp => kvp.Key,
+#if PORTABLE
+                kvp => new Regex(string.Format("^{0}", kvp.Value)));
+#else
                 kvp => new Regex(string.Format("^{0}", kvp.Value), RegexOptions.Compiled));
+#endif
         }
 
         /// <summary>
@@ -98,7 +102,11 @@ namespace ExpressiveAnnotations.Analysis
                 var regex = kvp.Value;
                 var match = regex.Match(Expression);
                 var value = match.Value;
+#if PORTABLE
+                if (value.Length > 0)
+#else
                 if (value.Any())
+#endif
                 {
                     Token = new Token(kvp.Key, ConvertTokenValue(kvp.Key, value), new Location(Location));
 

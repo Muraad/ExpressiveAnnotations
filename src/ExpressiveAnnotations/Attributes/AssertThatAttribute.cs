@@ -3,7 +3,11 @@
  * Licensed MIT: http://opensource.org/licenses/MIT */
 
 using System;
+#if PORTABLE
+using System.Runtime.CompilerServices;
+#else
 using System.ComponentModel.DataAnnotations;
+#endif
 using System.Text.RegularExpressions;
 using ExpressiveAnnotations.Analysis;
 
@@ -13,7 +17,11 @@ namespace ExpressiveAnnotations.Attributes
     /// Validation attribute, executed for non-null annotated field, which indicates that assertion given in logical expression has to be satisfied, for such field to be considered as valid.
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
+#if PORTABLE
+    public sealed class AssertThatAttribute : Attribute
+#else
     public sealed class AssertThatAttribute : ValidationAttribute
+#endif
     {
         private const string _defaultErrorMessage = "Assertion for {0} field is not satisfied by the following logic: {1}.";
         private Func<object, bool> CachedValidationFunc { get; set; }
@@ -24,7 +32,15 @@ namespace ExpressiveAnnotations.Attributes
         /// </summary>
         public string Expression { get; set; }
 
+#if PORTABLE
+        public string ErrorMessageString { get; set; }
+#endif
+
+#if PORTABLE
+        public object TypeId
+#else
         public override object TypeId
+#endif
         {
             get { return string.Format("{0}[{1}]", GetType().FullName, Regex.Replace(Expression, @"\s+", string.Empty)); } // distinguishes instances based on provided expressions
         }
@@ -34,8 +50,13 @@ namespace ExpressiveAnnotations.Attributes
         /// </summary>
         /// <param name="expression">The logical expression based on which requirement condition is computed.</param>
         public AssertThatAttribute(string expression)
+#if !PORTABLE
             : base(_defaultErrorMessage)
+#endif
         {
+#if PORTABLE
+            ErrorMessageString = _defaultErrorMessage;
+#endif
             Parser = new Parser();
             Parser.RegisterMethods();
 
@@ -71,6 +92,19 @@ namespace ExpressiveAnnotations.Attributes
             return string.Format(ErrorMessageString, displayName, expression);
         }
 
+#if PORTABLE
+        public Tuple<bool, string, string> IsValid(object value, string displayName, [CallerMemberName] string memberName = "")
+        {
+            if (value != null)
+            {
+                if (CachedValidationFunc == null)
+                    CachedValidationFunc = Parser.Parse(value.GetType(), Expression);
+                if (CachedValidationFunc(value)) // check if the requirement condition is satisfied
+                    return Tuple.Create(false, FormatErrorMessage(displayName, Expression), memberName);
+            }
+            return Tuple.Create(true, "", "");  // IsValid = true, No Error message, no member name needed in result
+        }
+#else
         /// <summary>
         /// Validates the specified value with respect to the current validation attribute.
         /// </summary>
@@ -95,5 +129,6 @@ namespace ExpressiveAnnotations.Attributes
 
             return ValidationResult.Success;
         }
+#endif
     }
 }
