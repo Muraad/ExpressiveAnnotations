@@ -9,19 +9,20 @@ using ExpressiveAnnotations.Analysis;
 namespace ExpressiveAnnotations.Attributes
 {
     /// <summary>
-    /// Contains a set of predefined methods.
+    ///     Contains a set of predefined methods.
     /// </summary>
     internal static class Toolchain
-    {        
+    {
         /// <summary>
-        /// Registers methods for expressions.
+        ///     Registers built-in methods for expressions parser.
         /// </summary>
-        /// <param name="parser">Parser.</param>
+        /// <param name="parser">The parser instance.</param>
         public static void RegisterMethods(this Parser parser)
         {
             parser.AddFunction("Now", () => DateTime.Now);
             parser.AddFunction("Today", () => DateTime.Today);
             parser.AddFunction<int, int, int, DateTime>("Date", (year, month, day) => new DateTime(year, month, day));
+            parser.AddFunction<int, int, int, int, int, int, DateTime>("Date", (year, month, day, hour, minute, second) => new DateTime(year, month, day, hour, minute, second));
             parser.AddFunction<string, int>("Length", str => str != null ? str.Length : 0);
             parser.AddFunction<string, string>("Trim", str => str != null ? str.Trim() : null);
             parser.AddFunction<string, string, string>("Concat", (strA, strB) => string.Concat(strA, strB));
