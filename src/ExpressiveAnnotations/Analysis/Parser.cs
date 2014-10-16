@@ -14,15 +14,15 @@ namespace ExpressiveAnnotations.Analysis
      * 
      * expression => or-exp
      * or-exp     => and-exp [ "||" or-exp ]
-     * and-exp    => not-exp [ "&&" and-exp ]
-     * not-exp    => rel-exp | "!" not-exp
-     * rel-exp    => add-exp [ rel-op add-exp ]
+     * and-exp    => rel-exp [ "&&" and-exp ]
+     * rel-exp    => not-exp [ rel-op not-exp ]
+     * not-exp    => add-exp | "!" not-exp
      * add-exp    => mul-exp add-exp'
      * add-exp'   => "+" add-exp | "-" add-exp
      * mul-exp    => val mul-exp'
-     * mul-exp'   => "*" mul-exp | "/" mul-exp 
-     * rel-op     => "==" | "!=" | ">" | ">=" | "<" | "<="     
-     * val        => "null" | int | float | bool | string | func | "(" or-exp ")" 
+     * mul-exp'   => "*" mul-exp | "/" mul-exp
+     * rel-op     => "==" | "!=" | ">" | ">=" | "<" | "<="
+     * val        => "null" | int | float | bool | string | func | "(" or-exp ")"
      */
 
     /// <summary>
@@ -107,7 +107,7 @@ namespace ExpressiveAnnotations.Analysis
             }
             catch (ParseErrorException e)
             {
-                throw new InvalidOperationException(BuildParseError(e, expression), e);
+                throw new InvalidOperationException(BuildParseError(e, expression));
             }
             catch (Exception e)
             {
@@ -268,7 +268,7 @@ namespace ExpressiveAnnotations.Analysis
             var pos = e.Location;
             return pos == null
                 ? string.Format("Parse error: {0}", e.Message)
-                : string.Format("Parse error line {0}, column {1}:{2}{3}",
+                : string.Format("Parse error on line {0}, column {1}:{2}{3}",
                     pos.Line, pos.Column, expression.TakeLine(pos.Line - 1).Substring(pos.Column - 1).Indicator(), e.Message);
         }
 
@@ -312,40 +312,52 @@ namespace ExpressiveAnnotations.Analysis
             var arg1 = ParseAndExp();
             if (PeekType() != TokenType.OR)
                 return arg1;
+            var oper = PeekToken();
             ReadToken();
             var arg2 = ParseOrExp();
+
+            if (!arg1.Type.IsBool() || !arg2.Type.IsBool())
+                throw new ParseErrorException(
+                    string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", oper.Value, arg1.Type, arg2.Type),
+                    oper.Location);
+
             return Expression.OrElse(arg1, arg2); // short-circuit evaluation
         }
 
         private Expression ParseAndExp()
         {
-            var arg1 = ParseNotExp();
+            var arg1 = ParseRelExp();
             if (PeekType() != TokenType.AND)
                 return arg1;
+            var oper = PeekToken();
             ReadToken();
             var arg2 = ParseAndExp();
-            return Expression.AndAlso(arg1, arg2); // short-circuit evaluation
-        }
 
-        private Expression ParseNotExp()
-        {
-            if (PeekType() != TokenType.NOT)
-                return ParseRelExp();
-            ReadToken();
-            return Expression.Not(ParseNotExp()); // allows multiple negations
+            if (!arg1.Type.IsBool() || !arg2.Type.IsBool())
+                throw new ParseErrorException(
+                    string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", oper.Value, arg1.Type, arg2.Type),
+                    oper.Location);
+
+            return Expression.AndAlso(arg1, arg2); // short-circuit evaluation
         }
 
         private Expression ParseRelExp()
         {
-            var arg1 = ParseAddExp();
+            var arg1 = ParseNotExp();
             if (!new[] {TokenType.LT, TokenType.LE, TokenType.GT, TokenType.GE, TokenType.EQ, TokenType.NEQ}.Contains(PeekType()))
                 return arg1;
-            var oper = PeekType();
+            var oper = PeekToken();            
             ReadToken();
-            var arg2 = ParseAddExp();
+            var arg2 = ParseNotExp();
+
+            if (oper.Type != TokenType.EQ && oper.Type != TokenType.NEQ)
+                if ((!arg1.Type.IsNumeric() || !arg2.Type.IsNumeric()) && (!arg1.Type.IsDateTime() || !arg2.Type.IsDateTime()))                
+                    throw new ParseErrorException(
+                        string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", oper.Value, arg1.Type, arg2.Type),
+                        oper.Location);
 
             Helper.MakeTypesCompatible(arg1, arg2, out arg1, out arg2);
-            switch (oper)
+            switch (oper.Type)
             {
                 case TokenType.LT:
                     return Expression.LessThan(arg1, arg2);
@@ -364,6 +376,22 @@ namespace ExpressiveAnnotations.Analysis
             }
         }
 
+        private Expression ParseNotExp()
+        {
+            if (PeekType() != TokenType.NOT)
+                return ParseAddExp();
+            var oper = PeekToken();
+            ReadToken();
+            var arg = ParseNotExp(); // allow multiple negations
+
+            if (!arg.Type.IsBool())
+                throw new ParseErrorException(
+                    string.Format("Operator '{0}' cannot be applied to operand of type '{1}'.", oper.Value, arg.Type),
+                    oper.Location);
+
+            return Expression.Not(arg);
+        }
+
         private Expression ParseAddExp()
         {
             var sign = UnifySign();
@@ -379,8 +407,7 @@ namespace ExpressiveAnnotations.Analysis
         {
             if (!new[] {TokenType.ADD, TokenType.SUB}.Contains(PeekType()))
                 return arg1;
-            var tkn = PeekToken();
-            var oper = PeekType();
+            var oper = PeekToken();            
             ReadToken();
             var sign = UnifySign();
             var arg2 = ParseMulExp();
@@ -388,13 +415,14 @@ namespace ExpressiveAnnotations.Analysis
             if (sign == TokenType.SUB)
                 arg2 = InverseNumber(arg2);
 
-            if ((arg1.Type.IsString() || arg2.Type.IsString()) && oper == TokenType.SUB)
-                throw new ParseErrorException(
-                    string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", tkn.Value, arg1.Type, arg2.Type),
-                    tkn.Location);
+            if (oper.Type == TokenType.SUB)
+                if (arg1.Type.IsString() || arg2.Type.IsString())
+                    throw new ParseErrorException(
+                        string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", oper.Value, arg1.Type, arg2.Type),
+                        oper.Location);
 
             Helper.MakeTypesCompatible(arg1, arg2, out arg1, out arg2);
-            switch (oper)
+            switch (oper.Type)
             {
                 case TokenType.ADD:
                     return ParseAddExpInternal(
@@ -430,8 +458,7 @@ namespace ExpressiveAnnotations.Analysis
         {
             if (!new[] {TokenType.MUL, TokenType.DIV}.Contains(PeekType()))
                 return arg1;
-            var tkn = PeekToken();
-            var oper = PeekType();
+            var oper = PeekToken();
             ReadToken();
             var sign = UnifySign();
             var arg2 = ParseVal();
@@ -441,11 +468,11 @@ namespace ExpressiveAnnotations.Analysis
 
             if (!arg1.Type.IsNumeric() || !arg2.Type.IsNumeric())
                 throw new ParseErrorException(
-                    string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", tkn.Value, arg1.Type, arg2.Type),
-                    tkn.Location);
+                    string.Format("Operator '{0}' cannot be applied to operands of type '{1}' and '{2}'.", oper.Value, arg1.Type, arg2.Type),
+                    oper.Location);
 
             Helper.MakeTypesCompatible(arg1, arg2, out arg1, out arg2);
-            switch (oper)
+            switch (oper.Type)
             {
                 case TokenType.MUL:
                     return ParseMulExpInternal(Expression.Multiply(arg1, arg2));
@@ -531,8 +558,8 @@ namespace ExpressiveAnnotations.Analysis
 
         private Expression ParseFunc()
         {
-            var funcTkn = PeekToken();
-            var name = PeekValue().ToString();
+            var func = PeekToken();
+            var name = func.Value.ToString();
             ReadToken(); // read name
 
             if (PeekType() != TokenType.LEFT_BRACKET)
@@ -543,15 +570,15 @@ namespace ExpressiveAnnotations.Analysis
             var args = new List<Tuple<Expression, Location>>();
             while (PeekType() != TokenType.RIGHT_BRACKET) // read comma-separated arguments until we hit ")"
             {
-                var argTkn = PeekToken();
+                var tkn = PeekToken();
                 var arg = ParseOrExp();
                 if (PeekType() == TokenType.COMMA)
                     ReadToken();
-                args.Add(new Tuple<Expression, Location>(arg, argTkn.Location));
+                args.Add(new Tuple<Expression, Location>(arg, tkn.Location));
             }
             ReadToken(); // read ")"
 
-            return ExtractMethodExpression(name, args, funcTkn.Location); // get method call
+            return ExtractMethodExpression(name, args, func.Location); // get method call
         }
 
         private Expression ExtractFieldExpression(string name)
@@ -802,8 +829,7 @@ namespace ExpressiveAnnotations.Analysis
         {
             if (signatures > 1)
                 throw new ParseErrorException(
-                    string.Format("Function '{0}' accepting {1} argument{2} is ambiguous.",
-                        funcName, args, args == 1 ? string.Empty : "s"),
+                    string.Format("Function '{0}' accepting {1} argument{2} is ambiguous.", funcName, args, args == 1 ? string.Empty : "s"),
                     funcPos);
         }
 
@@ -811,8 +837,7 @@ namespace ExpressiveAnnotations.Analysis
         {
             if (expected != actual)
                 throw new ParseErrorException(
-                    string.Format("Incorrect number of arguments provided. Function '{0}' expects {1}, not {2}.",
-                        funcName, expected, actual),
+                    string.Format("Incorrect number of arguments provided. Function '{0}' expects {1}, not {2}.", funcName, expected, actual),
                     null);
         }
 
@@ -825,8 +850,7 @@ namespace ExpressiveAnnotations.Analysis
             catch
             {
                 throw new ParseErrorException(
-                    string.Format("Function '{0}' {1} argument implicit conversion from '{2}' to expected '{3}' failed.",
-                        funcName, argIdx.ToOrdinal(), arg.Type, type),
+                    string.Format("Function '{0}' {1} argument implicit conversion from '{2}' to expected '{3}' failed.", funcName, argIdx.ToOrdinal(), arg.Type, type),
                     argPos);
             }
         }
