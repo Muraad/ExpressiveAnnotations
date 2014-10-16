@@ -687,8 +687,8 @@ namespace ExpressiveAnnotations.Analysis
                             name, Environment.NewLine, string.Join("," + Environment.NewLine,
 #if PORTABLE
                             constants.Select(
-                                    x => x.DeclaredType != null
-                                            ? string.Format("'{0}.{1}'", x.DeclaredType.FullName, x.Name)
+                                    x => x.FieldType != null
+                                            ? string.Format("'{0}.{1}'", x.FieldType.FullName, x.Name)
                                             : string.Format("'{0}'", x.Name)))),
 #else
  constants.Select(
