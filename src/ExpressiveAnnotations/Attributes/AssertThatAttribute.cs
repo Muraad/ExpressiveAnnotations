@@ -19,7 +19,7 @@ namespace ExpressiveAnnotations.Attributes
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
 #if PORTABLE
-    public sealed class AssertThatAttribute : Attribute
+    public sealed class AssertThatAttribute : ConditionAttribute
 #else
     public sealed class AssertThatAttribute : ValidationAttribute
 #endif
@@ -38,7 +38,7 @@ namespace ExpressiveAnnotations.Attributes
 #endif
 
 #if PORTABLE
-        public object TypeId
+        public override object TypeId
 #else
         public override object TypeId
 #endif
@@ -94,14 +94,14 @@ namespace ExpressiveAnnotations.Attributes
         }
 
 #if PORTABLE
-        public Tuple<bool, string, string> IsValid(object value, string displayName, [CallerMemberName] string memberName = "")
+        public override Tuple<bool, string, string> IsValid(object value, [CallerMemberName] string memberName = "")
         {
             if (value != null)
             {
                 if (CachedValidationFunc == null)
                     CachedValidationFunc = Parser.Parse(value.GetType(), Expression);
                 if (CachedValidationFunc(value)) // check if the requirement condition is satisfied
-                    return Tuple.Create(false, FormatErrorMessage(displayName, Expression), memberName);
+                    return Tuple.Create(false, FormatErrorMessage(memberName, Expression), memberName);
             }
             return Tuple.Create(true, "", "");  // IsValid = true, No Error message, no member name needed in result
         }

@@ -84,6 +84,14 @@ namespace ExpressiveAnnotations.Tests
             Uncertain,
         }
 
+#if PORTABLE
+        [TestInitialize]
+        public void Initialize()
+        {
+            Portable.GetAssemblies = System.AppDomain.CurrentDomain.GetAssemblies;
+        }
+#endif
+
         [TestMethod]
         public void verify_logic_without_context()
         {

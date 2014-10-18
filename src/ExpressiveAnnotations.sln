@@ -21,6 +21,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ExpressiveAnnotations.Scrip
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpressiveAnnotationsPCL", "ExpressiveAnnotationsPCL\ExpressiveAnnotationsPCL.csproj", "{69060DCD-C66C-4658-B22B-E21B56FD1759}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpressiveAnnotationsPCL.Tests", "ExpressiveAnnotationsPCL.Tests\ExpressiveAnnotationsPCL.Tests.csproj", "{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,14 @@ Global
 		{69060DCD-C66C-4658-B22B-E21B56FD1759}.Release-Net40|Any CPU.Build.0 = Release|Any CPU
 		{69060DCD-C66C-4658-B22B-E21B56FD1759}.Release-Net45|Any CPU.ActiveCfg = Release|Any CPU
 		{69060DCD-C66C-4658-B22B-E21B56FD1759}.Release-Net45|Any CPU.Build.0 = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release-Net40|Any CPU.ActiveCfg = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release-Net40|Any CPU.Build.0 = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release-Net45|Any CPU.ActiveCfg = Release|Any CPU
+		{2EAA9B1D-BC85-4EB5-835B-282DD6E47466}.Release-Net45|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

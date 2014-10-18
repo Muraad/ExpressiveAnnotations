@@ -103,7 +103,7 @@ namespace ExpressiveAnnotations.Analysis
                 var match = regex.Match(Expression);
                 var value = match.Value;
 #if PORTABLE
-                if (value.Length > 0)
+                if (!String.IsNullOrEmpty(value))
 #else
                 if (value.Any())
 #endif

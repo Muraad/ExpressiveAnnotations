@@ -11,7 +11,11 @@ namespace ExpressiveAnnotations.Attributes
     /// <summary>
     ///     Contains a set of predefined methods.
     /// </summary>
+#if PORTABLE
+    public static class Toolchain
+#else
     internal static class Toolchain
+#endif
     {
         /// <summary>
         ///     Registers built-in methods for expressions parser.

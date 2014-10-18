@@ -5,6 +5,7 @@ namespace ExpressiveAnnotations.Tests
 {
     public static class Helper
     {
+        
         public static IEnumerable<TSource> DistinctBy<TSource, TKey>(this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
         {
             var seenKeys = new HashSet<TKey>();

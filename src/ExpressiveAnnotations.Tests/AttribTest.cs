@@ -11,8 +11,15 @@ namespace ExpressiveAnnotations.Tests
         [TestMethod]
         public void verify_attributes_uniqueness()
         {
+#if PORTABLE
+            Portable.GetAssemblies = System.AppDomain.CurrentDomain.GetAssemblies;
+#endif
             var attributes = typeof (Model).GetProperty("Value1")
+#if PORTABLE
+                .GetCustomAttributes<ConditionAttribute>()
+#else
                 .GetCustomAttributes()
+#endif
                 .DistinctBy(x => x.TypeId)
                 .ToList();
             Assert.AreEqual(2, attributes.Count); // ignores redundant attributes of the same type id, because they do nothing new (exact type name, exact expression)
@@ -23,7 +30,11 @@ namespace ExpressiveAnnotations.Tests
             }.All(x => attributes.Select(y => y.GetType()).Contains(x)));
 
             attributes = typeof (Model).GetProperty("Value2")
+#if PORTABLE
+                .GetCustomAttributes<ConditionAttribute>()
+#else
                 .GetCustomAttributes()
+#endif
                 .DistinctBy(x => x.TypeId)
                 .ToList();
             Assert.AreEqual(4, attributes.Count); // all type ids are unique (despite the same type names of some attributes, they contain different expressions)

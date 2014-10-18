@@ -18,7 +18,7 @@ namespace ExpressiveAnnotations.Attributes
     /// </summary>
     [AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = true)]
 #if PORTABLE
-    public sealed class RequiredIfAttribute : Attribute
+    public sealed class RequiredIfAttribute : ConditionAttribute
 #else
     public sealed class RequiredIfAttribute : ValidationAttribute
 #endif
@@ -43,11 +43,17 @@ namespace ExpressiveAnnotations.Attributes
         public bool AllowEmptyStrings { get; set; }
 
 #if PORTABLE
-        public object TypeId
+        public override object TypeId
+        {
+            get 
+            {
+                string tmp = GetType().FullName;
+                return string.Format("{0}[{1}]", GetType().FullName, Regex.Replace(Expression, @"\s+", string.Empty)); 
+            } 
+        }
 #else
         public override object TypeId
-#endif
-        {
+            {
             /* From MSDN (msdn.microsoft.com/en-us/library/system.attribute.typeid.aspx, msdn.microsoft.com/en-us/library/6w3a7b50.aspx): 
              * 
              * As implemented, this identifier is merely the Type of the attribute. However, it is intended that the unique identifier be used to 
@@ -68,6 +74,8 @@ namespace ExpressiveAnnotations.Attributes
                                                                                                                             *     - returning hash code based on expression - can lead to collisions (infinitely many strings can't be mapped injectively into any finite set - best unique identifier for string is the string itself) 
                                                                                                                             */
         }
+#endif
+        
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RequiredIfAttribute" /> class.
@@ -118,7 +126,7 @@ namespace ExpressiveAnnotations.Attributes
         }
 
 #if PORTABLE
-        public Tuple<bool, string, string> IsValid(object value, string displayName, [CallerMemberName] string memberName = "")
+        public override Tuple<bool, string, string> IsValid(object value, [CallerMemberName] string memberName = "")
         {
             var isEmpty = value is string && string.IsNullOrWhiteSpace((string)value);
             if (value == null || (isEmpty && !AllowEmptyStrings))
@@ -126,7 +134,7 @@ namespace ExpressiveAnnotations.Attributes
                 if (CachedValidationFunc == null)
                     CachedValidationFunc = Parser.Parse(value.GetType(), Expression);
                 if (CachedValidationFunc(value)) // check if the requirement condition is satisfied
-                    return Tuple.Create(false, FormatErrorMessage(displayName, Expression), memberName);
+                    return Tuple.Create(false, FormatErrorMessage(memberName, Expression), memberName);
             }
             return Tuple.Create(true, "", "");  // IsValid = true, No Error message, no member name needed in result
         }

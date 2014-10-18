@@ -14,6 +14,13 @@ using System.Reflection;
 
 namespace ExpressiveAnnotations
 {
+#if PORTABLE
+    public static class Portable
+    {
+        public static Func<IEnumerable<Assembly>> GetAssemblies { get; set; }
+    }
+#endif
+
     internal static class Helper
     {
         public static void MakeTypesCompatible(Expression e1, Expression e2, out Expression oute1, out Expression oute2)
@@ -59,27 +66,41 @@ namespace ExpressiveAnnotations
         }
 
 #if PORTABLE
+
+        private static bool IsEnumType(this Type type)
+        {
+            bool result = false;
+            if(type != null)
+            {
+                var baseType = type.GetTypeInfo().BaseType;
+                if (baseType != null)
+                    result = baseType.Equals(typeof(Enum));
+            }
+            return result;
+        }
+
         public static bool IsNumeric(this Type type)
         {
             if (type == null)
                 throw new ArgumentNullException("type");
-
             
             var numericTypes = new HashSet<Type>
             {
-                typeof(sbyte),    //sbyte
-                typeof(byte),     //byte
-                typeof(short),    //short
-                typeof(ushort),   //ushort
-                typeof(int),    //int
-                typeof(uint),   //uint
-                typeof(long),    //long
-                typeof(ulong),   //ulong
-                typeof(float),   //float
-                typeof(double),   //double
-                typeof(decimal)   //decimal
+                typeof(SByte),    //sbyte
+                typeof(Byte),     //byte
+                typeof(Int16),    //short
+                typeof(UInt16),   //ushort
+                typeof(Int32),    //int
+                typeof(UInt32),   //uint
+                typeof(Int64),    //long
+                typeof(UInt64),   //ulong
+                typeof(Single),   //float
+                typeof(Double),   //double
+                typeof(Decimal),   //decimal
             };
-            return numericTypes.Any(t => t.Equals(type)) || type.IsNullable() && Nullable.GetUnderlyingType(type).IsNumeric();
+            return numericTypes.Any(t => t.Equals(type)) 
+                || type.IsEnumType() 
+                || (type.IsNullable() && Nullable.GetUnderlyingType(type).IsNumeric());
         }
 #else
         public static bool IsNumeric(this Type type)
@@ -112,7 +133,8 @@ namespace ExpressiveAnnotations
                 throw new ArgumentNullException("type");
 
 #if PORTABLE
-            return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+            return type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+            //return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
 #else
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
 #endif
@@ -134,7 +156,7 @@ namespace ExpressiveAnnotations
             try
             {
 #if PORTABLE
-                return assembly.ExportedTypes;
+                return assembly.GetLoadableTypes();
 #else
                 return assembly.GetTypes();
 #endif

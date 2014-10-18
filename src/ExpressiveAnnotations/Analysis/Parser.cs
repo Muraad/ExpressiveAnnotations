@@ -38,9 +38,6 @@ namespace ExpressiveAnnotations.Analysis
         private IDictionary<string, object> Consts { get; set; }
         private IDictionary<string, IList<LambdaExpression>> Functions { get; set; }
 
-#if PORTABLE
-        public Func<IEnumerable<Assembly>> GetAssemblies { get; set; }
-#endif
         /// <summary>
         ///     Initializes a new instance of the <see cref="Parser" /> class.
         /// </summary>
@@ -601,7 +598,7 @@ namespace ExpressiveAnnotations.Analysis
             foreach (var part in parts)
             {
 #if PORTABLE
-                var pi = type.GetRuntimeProperty(part);
+                var pi = type.GetTypeInfo().GetDeclaredProperty(part);
 #else
                 var pi = type.GetProperty(part);
 #endif
@@ -616,6 +613,31 @@ namespace ExpressiveAnnotations.Analysis
             return expr;
         }
 
+        private Expression FetchVariableFieldValue(string name)
+        {
+            var type = ContextType;
+            var expr = ContextExpression;
+            var parts = name.Split('.');
+
+            foreach (var part in parts)
+            {
+#if PORTABLE
+                var fi = type.GetTypeInfo().GetDeclaredField(part);
+#else
+                var fi = type.GetField(part);
+#endif
+                if (fi == null)
+                    return null;
+
+                expr = Expression.Field(expr, fi);
+                //expr = Expression.Property(expr, pi);
+                type = fi.FieldType;
+            }
+
+            Fields[name] = type;
+            return expr;
+        }
+
         private Expression FetchEnumValue(string name)
         {
             var parts = name.Split('.');
@@ -623,16 +645,18 @@ namespace ExpressiveAnnotations.Analysis
             {
                 var enumTypeName = string.Join(".", parts.Take(parts.Count() - 1).ToList());
 #if PORTABLE
-                var assemblies = GetAssemblies();
+                var assemblies = Portable.GetAssemblies();
 #else
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 #endif
                 var enumTypes = assemblies
-                    .SelectMany(a => a.GetLoadableTypes())
 #if PORTABLE
-                    .Select(t => t.GetTypeInfo())
-#endif
+                    .SelectMany(t => t.DefinedTypes)
+                    .Where(t => t.IsEnum && t.AsType().FullName.Replace("+", ".").EndsWith(enumTypeName))
+#else
+                    .SelectMany(a => a.GetLoadableTypes())
                     .Where(t => t.IsEnum && t.FullName.Replace("+", ".").EndsWith(enumTypeName))
+#endif
                     .ToList();
 
                 if (enumTypes.Count() > 1)
@@ -664,21 +688,22 @@ namespace ExpressiveAnnotations.Analysis
             {
                 var constTypeName = string.Join(".", parts.Take(parts.Count() - 1).ToList());
 #if PORTABLE
-                var assemblies = GetAssemblies();
+                var assemblies = Portable.GetAssemblies();
 #else
                 var assemblies = AppDomain.CurrentDomain.GetAssemblies();
 #endif
                 var constants = assemblies
+#if PORTABLE
+                    .SelectMany(t => t.DefinedTypes)
+                    .Where(t => t.FullName.Replace("+", ".").EndsWith(constTypeName))
+                    .SelectMany(t => t.DeclaredFields.Where(f => f.IsLiteral && !f.IsInitOnly && f.Name.Equals(parts.Last()) && f.IsPublic))
+#else
                     .SelectMany(a => a.GetLoadableTypes())
                     .Where(t => t.FullName.Replace("+", ".").EndsWith(constTypeName))
-#if PORTABLE
-                    .SelectMany(t => t.GetRuntimeFields().Where(f =>
-                        (f.IsPublic || f.IsStatic) && (f.IsLiteral && !f.IsInitOnly && f.Name.Equals(parts.Last()))))
-#else
                     .SelectMany(t =>
                         t.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
                             .Where(fi => fi.IsLiteral && !fi.IsInitOnly && fi.Name.Equals(parts.Last())))
-#endif                
+#endif
                     .ToList();
 
                 if (constants.Count() > 1)
@@ -716,7 +741,7 @@ namespace ExpressiveAnnotations.Analysis
             else
             {
 #if PORTABLE
-                var constant = ContextType.GetRuntimeFields().Where(f => f.IsPublic || f.IsStatic)
+                var constant = ContextType.GetTypeInfo().DeclaredFields.Where(f => f.IsPublic || f.IsStatic)
                     .SingleOrDefault(fi => fi.IsLiteral && !fi.IsInitOnly && fi.Name.Equals(name));
 #else
                 var constant = ContextType.GetFields(BindingFlags.Public | BindingFlags.Static | BindingFlags.FlattenHierarchy)
@@ -753,7 +778,7 @@ namespace ExpressiveAnnotations.Analysis
         private Expression FetchModelMethod(string name, IList<Tuple<Expression, Location>> args, Location funcPos)
         {
 #if PORTABLE
-            var signatures = ContextType.GetRuntimeMethods()
+            var signatures = ContextType.GetTypeInfo().DeclaredMethods
 #else
             var signatures = ContextType.GetMethods()
 #endif
@@ -816,7 +841,7 @@ namespace ExpressiveAnnotations.Analysis
         private void AssertMethodNameExistence(string name, Location funcPos)
         {
 #if PORTABLE
-            if (!Functions.ContainsKey(name) && !ContextType.GetRuntimeMethods().Any(mi => name.Equals(mi.Name)))
+            if (!Functions.ContainsKey(name) && !ContextType.GetTypeInfo().DeclaredMethods.Any(mi => name.Equals(mi.Name)))
 #else
             if (!Functions.ContainsKey(name) && !ContextType.GetMethods().Any(mi => name.Equals(mi.Name)))
 #endif

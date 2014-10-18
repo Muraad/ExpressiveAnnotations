@@ -127,7 +127,7 @@ namespace ExpressiveAnnotations.Tests
             catch (Exception e)
             {
                 Assert.IsTrue(e is ArgumentNullException);
-                Assert.AreEqual("Expression not provided.\r\nParameter name: expression", e.Message);
+                Assert.AreEqual("Expression not provided.\r\nParametername: expression", e.Message);
             }
 
             try

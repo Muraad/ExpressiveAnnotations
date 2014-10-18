@@ -9,7 +9,11 @@ namespace ExpressiveAnnotations.Analysis
     /// <summary>
     ///     The exception thrown when parse operation detects error in a specified expression.
     /// </summary>
+#if PORTABLE
+    public class ParseErrorException : Exception
+#else
     internal class ParseErrorException : Exception
+#endif
     {
         /// <summary>
         ///     Initializes a new instance of the <see cref="ParseErrorException" />.
