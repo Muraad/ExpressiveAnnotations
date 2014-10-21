@@ -4,7 +4,9 @@
 
 using System;
 using System.Collections.Generic;
-#if !PORTABLE
+#if PORTABLE
+using ExpressiveAnnotations.Attributes;
+#else
 using System.ComponentModel.DataAnnotations;
 #endif
 using System.Globalization;
@@ -138,7 +140,6 @@ namespace ExpressiveAnnotations
 
 #if PORTABLE
             return type.IsConstructedGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
-            //return type.GetTypeInfo().IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
 #else
             return type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
 #endif
@@ -173,9 +174,6 @@ namespace ExpressiveAnnotations
 
         public static string GetMemberNameFromDisplayAttribute(this Type type, string displayName)
         {
-#if PORTABLE
-            return null;
-#else
             if (type == null)
                 throw new ArgumentNullException("type");
             if (displayName == null)
@@ -183,7 +181,11 @@ namespace ExpressiveAnnotations
             
 
             // get member name from display attribute (if such an attribute exists) based on display name
+#if PORTABLE
+            var props = type.GetRuntimeProperties()
+#else
             var props = type.GetProperties()
+#endif
                 .Where(p => p.GetCustomAttributes(false)
                     .OfType<DisplayAttribute>()
                     .Any(a => a.GetName() == displayName))
@@ -191,7 +193,6 @@ namespace ExpressiveAnnotations
 
             // if there is an ambiguity, return nothing
             return props.Count() == 1 ? props.SingleOrDefault() : null;
-#endif
         }
 
         public static string TrimStart(this string input, out int line, out int column)

@@ -68,6 +68,7 @@
       <Link>Helper.cs</Link>
     </Compile>
     <Compile Include="Attributes\ConditionAttribute.cs" />
+    <Compile Include="Attributes\DisplayAttribute.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
