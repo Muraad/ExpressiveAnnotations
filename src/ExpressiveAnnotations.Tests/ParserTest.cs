@@ -926,7 +926,7 @@ namespace ExpressiveAnnotations.Tests
     ^--- Operator '!' cannot be applied to operand of type 'System.DateTime'.",
                     e.Message);
             }
-        }        
+        }
 
         private class Model
         {

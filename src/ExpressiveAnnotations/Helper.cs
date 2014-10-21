@@ -67,6 +67,10 @@ namespace ExpressiveAnnotations
 
 #if PORTABLE
 
+        // Type.GetTypeCode() is returning a TypeCode that is inside the HashSet
+        // But in portable version, an Enum type will not match any type given 
+        // in the Hashset, so we have to check for IsEnum
+        // Later there are no problems with converting it to a type given in the Hashset.
         private static bool IsEnumType(this Type type)
         {
             bool result = false;

@@ -22,7 +22,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;PCL_TEST;PORTABLE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;PCL_TEST;PORTABLE;UNTYPED_MODEL</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -62,8 +62,8 @@
     <Compile Include="..\ExpressiveAnnotations.Tests\ParserTest.cs">
       <Link>ParserTest.cs</Link>
     </Compile>
+    <Compile Include="MiscTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="UnitTest1.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\ExpressiveAnnotationsPCL\ExpressiveAnnotationsPCL.csproj">

@@ -95,7 +95,7 @@ namespace ExpressiveAnnotations.Analysis
             {
                 Clear();
                 ContextType = context;
-                var param = Expression.Parameter(typeof (object));
+                var param = Expression.Parameter(typeof(object));
                 ContextExpression = Expression.Convert(param, context);
                 Tokenize(expression);
                 var expressionTree = ParseExpression();
@@ -606,6 +606,7 @@ namespace ExpressiveAnnotations.Analysis
                     return null;
 
                 expr = Expression.Property(expr, pi);
+
                 type = pi.PropertyType;
             }
 
@@ -630,7 +631,6 @@ namespace ExpressiveAnnotations.Analysis
                     return null;
 
                 expr = Expression.Field(expr, fi);
-                //expr = Expression.Property(expr, pi);
                 type = fi.FieldType;
             }
 
