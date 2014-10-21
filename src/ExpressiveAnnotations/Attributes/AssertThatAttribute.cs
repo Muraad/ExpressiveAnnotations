@@ -59,11 +59,7 @@ namespace ExpressiveAnnotations.Attributes
         public string ErrorMessageString { get; set; }
 #endif
 
-#if PORTABLE
         public override object TypeId
-#else
-        public override object TypeId
-#endif
         {
             get { return string.Format("{0}[{1}]", GetType().FullName, Regex.Replace(Expression, @"\s+", string.Empty)); } // distinguishes instances based on provided expressions
         }

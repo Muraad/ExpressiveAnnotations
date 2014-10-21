@@ -63,16 +63,6 @@ namespace ExpressiveAnnotations.Attributes
         /// </summary>
         public bool AllowEmptyStrings { get; set; }
 
-#if PORTABLE
-        public override object TypeId
-        {
-            get 
-            {
-                string tmp = GetType().FullName;
-                return string.Format("{0}[{1}]", GetType().FullName, Regex.Replace(Expression, @"\s+", string.Empty)); 
-            } 
-        }
-#else
         public override object TypeId
             {
             /* From MSDN (msdn.microsoft.com/en-us/library/system.attribute.typeid.aspx, msdn.microsoft.com/en-us/library/6w3a7b50.aspx): 
@@ -95,7 +85,6 @@ namespace ExpressiveAnnotations.Attributes
                                                                                                                             *     - returning hash code based on expression - can lead to collisions (infinitely many strings can't be mapped injectively into any finite set - best unique identifier for string is the string itself) 
                                                                                                                             */
         }
-#endif
 
         /// <summary>
         /// Parses and compiles expression provided to the attribute. Compiled lambda is then cached and used for validation purposes.
