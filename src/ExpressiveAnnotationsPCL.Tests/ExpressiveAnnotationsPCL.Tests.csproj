@@ -53,16 +53,12 @@
     <Compile Include="..\ExpressiveAnnotations.Tests\AttribTest.cs">
       <Link>AttribTest.cs</Link>
     </Compile>
-    <Compile Include="..\ExpressiveAnnotations.Tests\Helper.cs">
-      <Link>Helper.cs</Link>
-    </Compile>
     <Compile Include="..\ExpressiveAnnotations.Tests\LexerTest.cs">
       <Link>LexerTest.cs</Link>
     </Compile>
     <Compile Include="..\ExpressiveAnnotations.Tests\ParserTest.cs">
       <Link>ParserTest.cs</Link>
     </Compile>
-    <Compile Include="MiscTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>

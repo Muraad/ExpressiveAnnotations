@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+#if !PORTABLE
 using System.ComponentModel.DataAnnotations;
+#endif
 using System.Linq;
 using System.Reflection;
 using ExpressiveAnnotations.Attributes;
@@ -48,6 +50,7 @@ namespace ExpressiveAnnotations.Tests
             }.All(x => attributes.Select(y => y.GetType()).Contains(x)));
         }
 
+#if !PORTABLE
         [TestMethod]
         public void verify_validation_execution_for_derived_types()
         {
@@ -76,6 +79,7 @@ namespace ExpressiveAnnotations.Tests
             Validator.TryValidateObject(firstDerived, firstContext, null, true);
             Validator.TryValidateObject(secondDerived, secondContext, null, true);
         }
+#endif
 
         public abstract class ModelBase
         {

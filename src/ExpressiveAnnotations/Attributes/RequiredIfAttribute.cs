@@ -43,6 +43,7 @@ namespace ExpressiveAnnotations.Attributes
 
             Expression = expression;
             AllowEmptyStrings = false;
+            CachedValidationFuncs = new Dictionary<Type, Func<object, bool>>();
         }
 
         private Dictionary<Type, Func<object, bool>> CachedValidationFuncs { get; set; }
