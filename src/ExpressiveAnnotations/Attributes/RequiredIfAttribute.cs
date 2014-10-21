@@ -3,6 +3,7 @@
  * Licensed MIT: http://opensource.org/licenses/MIT */
 
 using System;
+using System.Collections.Generic;
 #if PORTABLE
 using System.Runtime.CompilerServices;
 #else
@@ -25,7 +26,26 @@ namespace ExpressiveAnnotations.Attributes
     {
         private const string _defaultErrorMessage = "The {0} field is required by the following logic: {1}.";
 
-        private Func<object, bool> CachedValidationFunc { get; set; }
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RequiredIfAttribute" /> class.
+        /// </summary>
+        /// <param name="expression">The logical expression based on which requirement condition is computed.</param>
+        public RequiredIfAttribute(string expression)
+#if !PORTABLE
+            : base(_defaultErrorMessage)
+#endif
+        {
+#if PORTABLE
+            ErrorMessageString = _defaultErrorMessage;
+#endif
+            Parser = new Parser();
+            Parser.RegisterMethods();
+
+            Expression = expression;
+            AllowEmptyStrings = false;
+        }
+
+        private Dictionary<Type, Func<object, bool>> CachedValidationFuncs { get; set; }
         private Parser Parser { get; set; }
 
         /// <summary>
@@ -75,26 +95,6 @@ namespace ExpressiveAnnotations.Attributes
                                                                                                                             */
         }
 #endif
-        
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="RequiredIfAttribute" /> class.
-        /// </summary>
-        /// <param name="expression">The logical expression based on which requirement condition is computed.</param>
-        public RequiredIfAttribute(string expression)
-#if !PORTABLE
-            : base(_defaultErrorMessage)
-#endif
-        {
-#if PORTABLE
-            ErrorMessageString = _defaultErrorMessage;
-#endif
-            Parser = new Parser();
-            Parser.RegisterMethods();
-
-            Expression = expression;
-            AllowEmptyStrings = false;
-        }
 
         /// <summary>
         /// Parses and compiles expression provided to the attribute. Compiled lambda is then cached and used for validation purposes.
@@ -105,11 +105,11 @@ namespace ExpressiveAnnotations.Attributes
         {
             if (force)
             {
-                CachedValidationFunc = Parser.Parse(validationContextType, Expression);
+                CachedValidationFuncs[validationContextType] = Parser.Parse(validationContextType, Expression);
                 return;
             }
-            if (CachedValidationFunc == null)
-                CachedValidationFunc = Parser.Parse(validationContextType, Expression);
+            if (!CachedValidationFuncs.ContainsKey(validationContextType))
+                CachedValidationFuncs[validationContextType] = Parser.Parse(validationContextType, Expression);
         }
 
         /// <summary>
@@ -131,9 +131,9 @@ namespace ExpressiveAnnotations.Attributes
             var isEmpty = value is string && string.IsNullOrWhiteSpace((string)value);
             if (value == null || (isEmpty && !AllowEmptyStrings))
             {
-                if (CachedValidationFunc == null)
-                    CachedValidationFunc = Parser.Parse(value.GetType(), Expression);
-                if (CachedValidationFunc(value)) // check if the requirement condition is satisfied
+                if (!CachedValidationFuncs.ContainsKey(value.GetType()))
+                    CachedValidationFuncs[value.GetType()] = Parser.Parse(value.GetType(), Expression);
+                if (CachedValidationFuncs[value.GetType()](value)) // check if the requirement condition is satisfied
                     return Tuple.Create(false, FormatErrorMessage(memberName, Expression), memberName);
             }
             return Tuple.Create(true, "", "");  // IsValid = true, No Error message, no member name needed in result
@@ -161,10 +161,10 @@ namespace ExpressiveAnnotations.Attributes
                 var isEmpty = value is string && string.IsNullOrWhiteSpace((string) value);
                 if (value == null || (isEmpty && !AllowEmptyStrings))
                 {
-                    if (CachedValidationFunc == null)
-                        CachedValidationFunc = Parser.Parse(validationContext.ObjectType, Expression);
+                    if (!CachedValidationFuncs.ContainsKey(validationContext.ObjectType))
+                        CachedValidationFuncs[validationContext.ObjectType] = Parser.Parse(validationContext.ObjectType, Expression);
 
-                    if (CachedValidationFunc(validationContext.ObjectInstance)) // check if the requirement condition is satisfied
+                    if (CachedValidationFuncs[validationContext.ObjectType](validationContext.ObjectInstance)) // check if the requirement condition is satisfied
                         return new ValidationResult( // requirement confirmed => notify
                             FormatErrorMessage(validationContext.DisplayName, Expression),
                             new[] {memberName});
